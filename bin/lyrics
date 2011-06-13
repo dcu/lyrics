@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+# Copyright (C) 2006-2008 by Sergio Pistone
+# sergio_pistone@yahoo.com.ar
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the
+# Free Software Foundation, Inc.,
+# 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+$:.unshift File.dirname(__FILE__)+"/../lib"
+
+require "lyrics"
+
+options = OptionsParser.parse( ARGV )
+
+HTTP.set_proxy_settings( options.proxy ) if options.proxy
+
+app = Application.new(
+  :featuring_fix => options.feat_fix,
+  :sites => options.sites,
+  :cleanup_lyrics => options.cleanup,
+  :submit => options.submit,
+  :review => options.review,
+  :prompt_autogen => options.prompt_autogen,
+  :prompt_no_lyrics => options.prompt_no_lyrics,
+  :username => options.username,
+  :password => options.password
+)
+
+begin
+  app.restore_session( options.session_file ) if options.session_file
+
+  if options.batch_file
+    notify( I18n.get( "cli.application.batchmode" ) )
+    file = File.new( options.batch_file, "r" )
+    count = 0
+    while ( line = file.gets )
+      params = line.split( ";" )
+      next if params.length < 2
+      app.process( params[0], params[1], params[2], params[3] )
+      count += 1
+    end
+    notify( I18n.get( "cli.application.processedcount", count ) )
+    file.close()
+  else
+    app.process( options.artist, options.title, options.album, options.year )
+  end
+
+  app.save_session( options.session_file ) if options.session_file
+
+ensure
+
+  app.finalize()
+
+end
